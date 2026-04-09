@@ -60,11 +60,17 @@ ros2 service call /stop_recording std_srvs/srv/Trigger
     timestamp will be appended. This parameter is only used when no
     ``bag_name`` is specified.
 - ``topics``: (default: empty) array of strings that specifies the topics to record.
+    Topic names are expanded against the recorder node namespace, so relative
+    names (without leading ``/``) are namespace-aware.
 - ``record_all``: (default: False) when this is set, all topics are recorded.
 - ``disable_discovery``: (default: False) disable discovery of topics
     that occured after recording was launched.
 - ``storage_id``: (default: sqlite3) storage container format.
 - ``serialization_format``: (default: cdr) serialization format.
+- ``qos_profile_overrides_path``: (default: empty) path to a YAML file
+    containing per-topic QoS profiles. This matches rosbag2 behavior.
+    Topic keys are expanded against the recorder node namespace, so relative
+    topic names (without leading ``/``) are namespace-aware.
 - ``max_cache_size``: (default: 100MB) size (in bytes) of cache before
     writing to disk. See ``ros2 bag record --help`` for more.
 - ``max_bagfile_size``: (default: 0MB) maximum size a bagfile can be before it is split.
@@ -75,6 +81,32 @@ ros2 service call /stop_recording std_srvs/srv/Trigger
     See ``ros2 bag record --help`` for more.
 - ``start_recording_immediately``: (default: False) do not wait for
     service call before recording is started.
+
+QoS override file example:
+```
+qos_profile_overrides_path: /absolute/path/to/qos_overrides.yaml
+```
+
+A sample override file is included in
+[config/qos_overrides.yaml](config/qos_overrides.yaml).
+
+Example ``qos_overrides.yaml``:
+```
+camera/image_raw:
+    history: keep_last
+    depth: 10
+    reliability: best_effort
+    durability: volatile
+
+/tf_static:
+    history: keep_last
+    depth: 1
+    reliability: reliable
+    durability: transient_local
+```
+
+If you run the recorder under namespace ``/robot1``, the example key
+``camera/image_raw`` is resolved as ``/robot1/camera/image_raw``.
 
 
 ## License
