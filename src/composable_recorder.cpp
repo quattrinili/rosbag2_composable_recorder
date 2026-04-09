@@ -30,14 +30,15 @@ namespace
 {
 std::string resolve_topic_name(
   const std::string & topic_name, const rclcpp::Logger & logger,
-  const std::string & node_name, const std::string & node_namespace, const char * context)
+  const std::string & node_name,
+  const std::string & node_namespace, const char * context)
 {
   try {
     return rclcpp::expand_topic_or_service_name(topic_name, node_name, node_namespace, false);
   } catch (const std::exception & ex) {
     RCLCPP_WARN_STREAM(
       logger, "failed to expand " << context << " topic name '" << topic_name << "': " << ex.what()
-                                   << ". using raw topic name.");
+                                  << ". using raw topic name.");
     return topic_name;
   }
 }
@@ -56,7 +57,7 @@ rclcpp::QoS make_qos_from_yaml_node(
     } else {
       RCLCPP_WARN_STREAM(
         logger, "unsupported history='" << history << "' for topic '" << topic_name
-                                         << "', using keep_last.");
+                                        << "', using keep_last.");
     }
   }
 
@@ -82,7 +83,7 @@ rclcpp::QoS make_qos_from_yaml_node(
     } else {
       RCLCPP_WARN_STREAM(
         logger, "unsupported reliability='" << reliability << "' for topic '" << topic_name
-                                             << "', using system default.");
+                                            << "', using system default.");
     }
   }
 
@@ -95,7 +96,7 @@ rclcpp::QoS make_qos_from_yaml_node(
     } else {
       RCLCPP_WARN_STREAM(
         logger, "unsupported durability='" << durability << "' for topic '" << topic_name
-                                            << "', using system default.");
+                                           << "', using system default.");
     }
   }
 
@@ -104,8 +105,9 @@ rclcpp::QoS make_qos_from_yaml_node(
 
 void load_qos_profile_overrides_from_file(
   const std::string & qos_profile_overrides_path,
-  std::unordered_map<std::string, rclcpp::QoS> & topic_qos_profile_overrides, const rclcpp::Logger & logger,
-  const std::string & node_name, const std::string & node_namespace)
+  std::unordered_map<std::string, rclcpp::QoS> & topic_qos_profile_overrides,
+  const rclcpp::Logger & logger, const std::string & node_name,
+  const std::string & node_namespace)
 {
   // Parse QoS override YAML with yaml-cpp directly for compatibility with setups
   // where rosbag2_storage QoS YAML helper headers are not available via includes.
@@ -128,7 +130,7 @@ void load_qos_profile_overrides_from_file(
 
   RCLCPP_INFO_STREAM(
     logger, "loaded " << topic_qos_profile_overrides.size()
-                       << " QoS override entries from: " << qos_profile_overrides_path);
+                      << " QoS override entries from: " << qos_profile_overrides_path);
 }
 }  // namespace
 
