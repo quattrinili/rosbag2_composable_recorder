@@ -16,40 +16,34 @@
 #include "rosbag2_composable_recorder/composable_recorder.hpp"
 
 #include <stdio.h>
+#include <yaml-cpp/yaml.h>
 
 #include <chrono>
 #include <iomanip>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sstream>
 #include <stdexcept>
-#include <yaml-cpp/yaml.h>
 
 namespace rosbag2_composable_recorder
 {
 namespace
 {
 std::string resolve_topic_name(
-  const std::string & topic_name,
-  const rclcpp::Logger & logger,
-  const std::string & node_name,
-  const std::string & node_namespace,
-  const char * context)
+  const std::string & topic_name, const rclcpp::Logger & logger,
+  const std::string & node_name, const std::string & node_namespace, const char * context)
 {
   try {
     return rclcpp::expand_topic_or_service_name(topic_name, node_name, node_namespace, false);
   } catch (const std::exception & ex) {
     RCLCPP_WARN_STREAM(
-      logger,
-      "failed to expand " << context << " topic name '" << topic_name << "': " << ex.what() <<
-        ". using raw topic name.");
+      logger, "failed to expand " << context << " topic name '" << topic_name << "': " << ex.what()
+                                   << ". using raw topic name.");
     return topic_name;
   }
 }
 
 rclcpp::QoS make_qos_from_yaml_node(
-  const YAML::Node & qos_node,
-  const rclcpp::Logger & logger,
-  const std::string & topic_name)
+  const YAML::Node & qos_node, const rclcpp::Logger & logger, const std::string & topic_name)
 {
   auto qos = rclcpp::QoS(rclcpp::KeepLast(rmw_qos_profile_default.depth));
 
@@ -61,9 +55,8 @@ rclcpp::QoS make_qos_from_yaml_node(
       qos.keep_all();
     } else {
       RCLCPP_WARN_STREAM(
-        logger,
-        "unsupported history='" << history << "' for topic '" << topic_name <<
-          "', using keep_last.");
+        logger, "unsupported history='" << history << "' for topic '" << topic_name
+                                         << "', using keep_last.");
     }
   }
 
@@ -71,8 +64,7 @@ rclcpp::QoS make_qos_from_yaml_node(
     const auto depth = qos_node["depth"].as<int>();
     if (depth < 1) {
       RCLCPP_WARN_STREAM(
-        logger,
-        "invalid depth=" << depth << " for topic '" << topic_name << "', using depth=1.");
+        logger, "invalid depth=" << depth << " for topic '" << topic_name << "', using depth=1.");
       if (qos.get_rmw_qos_profile().history != RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
         qos.keep_last(1);
       }
@@ -89,9 +81,8 @@ rclcpp::QoS make_qos_from_yaml_node(
       qos.best_effort();
     } else {
       RCLCPP_WARN_STREAM(
-        logger,
-        "unsupported reliability='" << reliability << "' for topic '" << topic_name <<
-          "', using system default.");
+        logger, "unsupported reliability='" << reliability << "' for topic '" << topic_name
+                                             << "', using system default.");
     }
   }
 
@@ -103,9 +94,8 @@ rclcpp::QoS make_qos_from_yaml_node(
       qos.transient_local();
     } else {
       RCLCPP_WARN_STREAM(
-        logger,
-        "unsupported durability='" << durability << "' for topic '" << topic_name <<
-          "', using system default.");
+        logger, "unsupported durability='" << durability << "' for topic '" << topic_name
+                                            << "', using system default.");
     }
   }
 
@@ -114,10 +104,8 @@ rclcpp::QoS make_qos_from_yaml_node(
 
 void load_qos_profile_overrides_from_file(
   const std::string & qos_profile_overrides_path,
-  std::unordered_map<std::string, rclcpp::QoS> & topic_qos_profile_overrides,
-  const rclcpp::Logger & logger,
-  const std::string & node_name,
-  const std::string & node_namespace)
+  std::unordered_map<std::string, rclcpp::QoS> & topic_qos_profile_overrides, const rclcpp::Logger & logger,
+  const std::string & node_name, const std::string & node_namespace)
 {
   // Parse QoS override YAML with yaml-cpp directly for compatibility with setups
   // where rosbag2_storage QoS YAML helper headers are not available via includes.
@@ -135,14 +123,12 @@ void load_qos_profile_overrides_from_file(
     }
     topic_qos_profile_overrides = std::move(qos_overrides);
   } catch (const YAML::Exception & ex) {
-    throw std::runtime_error(
-            std::string("Exception on parsing QoS overrides file: ") + ex.what());
+    throw std::runtime_error(std::string("Exception on parsing QoS overrides file: ") + ex.what());
   }
 
   RCLCPP_INFO_STREAM(
-    logger,
-    "loaded " << topic_qos_profile_overrides.size() << " QoS override entries from: " <<
-      qos_profile_overrides_path);
+    logger, "loaded " << topic_qos_profile_overrides.size()
+                       << " QoS override entries from: " << qos_profile_overrides_path);
 }
 }  // namespace
 
@@ -168,8 +154,8 @@ ComposableRecorder::ComposableRecorder(const rclcpp::NodeOptions & options)
   std::vector<std::string> topics;
   topics.reserve(configured_topics.size());
   for (const auto & topic : configured_topics) {
-    auto resolved_topic = resolve_topic_name(
-      topic, get_logger(), get_name(), get_namespace(), "record");
+    auto resolved_topic =
+      resolve_topic_name(topic, get_logger(), get_name(), get_namespace(), "record");
     topics.emplace_back(resolved_topic);
     RCLCPP_INFO_STREAM(get_logger(), "recording topic: " << resolved_topic);
   }
@@ -204,10 +190,7 @@ ComposableRecorder::ComposableRecorder(const rclcpp::NodeOptions & options)
     declare_parameter<std::string>("qos_profile_overrides_path", "");
   if (!qos_profile_overrides_path.empty()) {
     load_qos_profile_overrides_from_file(
-      qos_profile_overrides_path,
-      ropt.topic_qos_profile_overrides,
-      get_logger(),
-      get_name(),
+      qos_profile_overrides_path, ropt.topic_qos_profile_overrides, get_logger(), get_name(),
       get_namespace());
   } else {
     RCLCPP_INFO(
