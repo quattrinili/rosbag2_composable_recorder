@@ -21,9 +21,131 @@
 #include <iomanip>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sstream>
+#include <stdexcept>
+#include <yaml-cpp/yaml.h>
 
 namespace rosbag2_composable_recorder
 {
+namespace
+{
+std::string resolve_topic_name(
+  const std::string & topic_name,
+  const rclcpp::Logger & logger,
+  const std::string & node_name,
+  const std::string & node_namespace,
+  const char * context)
+{
+  try {
+    return rclcpp::expand_topic_or_service_name(topic_name, node_name, node_namespace, false);
+  } catch (const std::exception & ex) {
+    RCLCPP_WARN_STREAM(
+      logger,
+      "failed to expand " << context << " topic name '" << topic_name << "': " << ex.what() <<
+        ". using raw topic name.");
+    return topic_name;
+  }
+}
+
+rclcpp::QoS make_qos_from_yaml_node(
+  const YAML::Node & qos_node,
+  const rclcpp::Logger & logger,
+  const std::string & topic_name)
+{
+  auto qos = rclcpp::QoS(rclcpp::KeepLast(rmw_qos_profile_default.depth));
+
+  if (qos_node["history"]) {
+    const auto history = qos_node["history"].as<std::string>();
+    if (history == "keep_last") {
+      // depth is handled below.
+    } else if (history == "keep_all") {
+      qos.keep_all();
+    } else {
+      RCLCPP_WARN_STREAM(
+        logger,
+        "unsupported history='" << history << "' for topic '" << topic_name <<
+          "', using keep_last.");
+    }
+  }
+
+  if (qos_node["depth"]) {
+    const auto depth = qos_node["depth"].as<int>();
+    if (depth < 1) {
+      RCLCPP_WARN_STREAM(
+        logger,
+        "invalid depth=" << depth << " for topic '" << topic_name << "', using depth=1.");
+      if (qos.get_rmw_qos_profile().history != RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
+        qos.keep_last(1);
+      }
+    } else if (qos.get_rmw_qos_profile().history != RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
+      qos.keep_last(static_cast<size_t>(depth));
+    }
+  }
+
+  if (qos_node["reliability"]) {
+    const auto reliability = qos_node["reliability"].as<std::string>();
+    if (reliability == "reliable") {
+      qos.reliable();
+    } else if (reliability == "best_effort") {
+      qos.best_effort();
+    } else {
+      RCLCPP_WARN_STREAM(
+        logger,
+        "unsupported reliability='" << reliability << "' for topic '" << topic_name <<
+          "', using system default.");
+    }
+  }
+
+  if (qos_node["durability"]) {
+    const auto durability = qos_node["durability"].as<std::string>();
+    if (durability == "volatile") {
+      qos.durability_volatile();
+    } else if (durability == "transient_local") {
+      qos.transient_local();
+    } else {
+      RCLCPP_WARN_STREAM(
+        logger,
+        "unsupported durability='" << durability << "' for topic '" << topic_name <<
+          "', using system default.");
+    }
+  }
+
+  return qos;
+}
+
+void load_qos_profile_overrides_from_file(
+  const std::string & qos_profile_overrides_path,
+  std::unordered_map<std::string, rclcpp::QoS> & topic_qos_profile_overrides,
+  const rclcpp::Logger & logger,
+  const std::string & node_name,
+  const std::string & node_namespace)
+{
+  // Parse QoS override YAML with yaml-cpp directly for compatibility with setups
+  // where rosbag2_storage QoS YAML helper headers are not available via includes.
+  try {
+    YAML::Node yaml_file = YAML::LoadFile(qos_profile_overrides_path);
+    std::unordered_map<std::string, rclcpp::QoS> qos_overrides;
+    for (const auto & topic_qos : yaml_file) {
+      const auto topic_name = topic_qos.first.as<std::string>();
+      auto resolved_topic_name =
+        resolve_topic_name(topic_name, logger, node_name, node_namespace, "QoS override");
+
+      qos_overrides.emplace(
+        resolved_topic_name,
+        make_qos_from_yaml_node(topic_qos.second, logger, resolved_topic_name));
+    }
+    topic_qos_profile_overrides = std::move(qos_overrides);
+  } catch (const YAML::Exception & ex) {
+    throw std::runtime_error(
+            std::string("Exception on parsing QoS overrides file: ") + ex.what());
+  }
+
+  RCLCPP_INFO_STREAM(
+    logger,
+    "loaded " << topic_qos_profile_overrides.size() << " QoS override entries from: " <<
+      qos_profile_overrides_path);
+}
+}  // namespace
+
 static std::string get_time_stamp()
 {
   std::stringstream datetime;
@@ -41,10 +163,15 @@ ComposableRecorder::ComposableRecorder(const rclcpp::NodeOptions & options)
   bag_name_(declare_parameter<std::string>("bag_name", "")),
   bag_prefix_(declare_parameter<std::string>("bag_prefix", "rosbag2_"))
 {
-  std::vector<std::string> topics =
+  const std::vector<std::string> configured_topics =
     declare_parameter<std::vector<std::string>>("topics", std::vector<std::string>());
-  for (const auto & topic : topics) {
-    RCLCPP_INFO_STREAM(get_logger(), "recording topic: " << topic);
+  std::vector<std::string> topics;
+  topics.reserve(configured_topics.size());
+  for (const auto & topic : configured_topics) {
+    auto resolved_topic = resolve_topic_name(
+      topic, get_logger(), get_name(), get_namespace(), "record");
+    topics.emplace_back(resolved_topic);
+    RCLCPP_INFO_STREAM(get_logger(), "recording topic: " << resolved_topic);
   }
   // set storage options
 #ifdef USE_GET_STORAGE_OPTIONS
@@ -72,6 +199,21 @@ ComposableRecorder::ComposableRecorder(const rclcpp::NodeOptions & options)
   ropt.rmw_serialization_format = declare_parameter<std::string>("serialization_format", "cdr");
   ropt.topic_polling_interval = std::chrono::milliseconds(100);
   ropt.topics.insert(ropt.topics.end(), topics.begin(), topics.end());
+
+  const std::string qos_profile_overrides_path =
+    declare_parameter<std::string>("qos_profile_overrides_path", "");
+  if (!qos_profile_overrides_path.empty()) {
+    load_qos_profile_overrides_from_file(
+      qos_profile_overrides_path,
+      ropt.topic_qos_profile_overrides,
+      get_logger(),
+      get_name(),
+      get_namespace());
+  } else {
+    RCLCPP_INFO(
+      get_logger(),
+      "qos_profile_overrides_path is empty, no explicit QoS profile overrides will be applied.");
+  }
 
   if (ropt.is_discovery_disabled) {
 #ifdef USE_STOP_DISCOVERY

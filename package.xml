@@ -17,6 +17,7 @@
   <depend>std_srvs</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
+  <depend>rosbag2_storage</depend>
   <depend>rosbag2_transport</depend>
   
   <export>
