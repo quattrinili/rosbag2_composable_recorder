@@ -29,8 +29,7 @@ namespace rosbag2_composable_recorder
 namespace
 {
 std::string resolve_topic_name(
-  const std::string & topic_name, const rclcpp::Logger & logger,
-  const std::string & node_name,
+  const std::string & topic_name, const rclcpp::Logger & logger, const std::string & node_name,
   const std::string & node_namespace, const char * context)
 {
   try {
@@ -106,8 +105,7 @@ rclcpp::QoS make_qos_from_yaml_node(
 void load_qos_profile_overrides_from_file(
   const std::string & qos_profile_overrides_path,
   std::unordered_map<std::string, rclcpp::QoS> & topic_qos_profile_overrides,
-  const rclcpp::Logger & logger, const std::string & node_name,
-  const std::string & node_namespace)
+  const rclcpp::Logger & logger, const std::string & node_name, const std::string & node_namespace)
 {
   // Parse QoS override YAML with yaml-cpp directly for compatibility with setups
   // where rosbag2_storage QoS YAML helper headers are not available via includes.
