@@ -39,6 +39,7 @@ set(ROS2_DEPENDENCIES
   "std_srvs"
   "rosbag2_storage"
   "rosbag2_transport"
+  "yaml-cpp"
 )
 foreach(pkg ${ROS2_DEPENDENCIES})
   find_package(${pkg} REQUIRED)

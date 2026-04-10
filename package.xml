@@ -19,6 +19,7 @@
   <depend>rclcpp_components</depend>
   <depend>rosbag2_storage</depend>
   <depend>rosbag2_transport</depend>
+  <depend>yaml-cpp</depend>
   
   <export>
     <build_type>ament_cmake</build_type>
