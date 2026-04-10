@@ -88,7 +88,8 @@ qos_profile_overrides_path: /absolute/path/to/qos_overrides.yaml
 ```
 
 A sample override file is included in
-[config/qos_overrides.yaml](config/qos_overrides.yaml).
+[config/qos_overrides.yaml](config/qos_overrides.yaml). The launch file does not
+apply it by default; pass this file explicitly if you want these overrides.
 
 Example ``qos_overrides.yaml``:
 ```

@@ -18,9 +18,7 @@
 import launch
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
-from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import LaunchConfiguration as LaunchConfig
-from launch.substitutions import PathJoinSubstitution
 from launch.actions import DeclareLaunchArgument as LaunchArg
 from launch.actions import OpaqueFunction
 
@@ -70,8 +68,7 @@ def generate_launch_description():
                   description='prefix of rosbag'),
         LaunchArg(
             'qos_profile_overrides_path',
-            default_value=PathJoinSubstitution(
-                [FindPackageShare('rosbag2_composable_recorder'), 'config', 'qos_overrides.yaml']),
+            default_value='',
             description='path to rosbag2 QoS override YAML file'),
         OpaqueFunction(function=launch_setup)
         ])
