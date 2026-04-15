@@ -37,7 +37,9 @@ set(ROS2_DEPENDENCIES
   "rclcpp"
   "rclcpp_components"
   "std_srvs"
+  "rosbag2_storage"
   "rosbag2_transport"
+  "yaml-cpp"
 )
 foreach(pkg ${ROS2_DEPENDENCIES})
   find_package(${pkg} REQUIRED)
@@ -85,6 +87,11 @@ install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}/
   FILES_MATCHING PATTERN "*.py")
+
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}/
+  FILES_MATCHING PATTERN "*.yaml")
 
 if(BUILD_TESTING)
   find_package(ament_cmake REQUIRED)

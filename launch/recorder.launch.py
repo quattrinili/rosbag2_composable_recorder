@@ -26,6 +26,7 @@ from launch.actions import OpaqueFunction
 def launch_setup(context, *args, **kwargs):
     """Create composable node."""
     bag_prefix = LaunchConfig('bag_prefix')
+    qos_profile_overrides_path = LaunchConfig('qos_profile_overrides_path')
     container = ComposableNodeContainer(
             name='composable_recorder_container',
             namespace='',
@@ -46,6 +47,7 @@ def launch_setup(context, *args, **kwargs):
                                  'record_all': False,
                                  'disable_discovery': False,
                                  'serialization_format': 'cdr',
+                                 'qos_profile_overrides_path': qos_profile_overrides_path,
                                  'start_recording_immediately': False,
                                  'bag_prefix': bag_prefix}],
                     remappings=[],
@@ -64,5 +66,9 @@ def generate_launch_description():
     return launch.LaunchDescription([
         LaunchArg('bag_prefix', default_value=['rosbag2_'],
                   description='prefix of rosbag'),
+        LaunchArg(
+            'qos_profile_overrides_path',
+            default_value='',
+            description='path to rosbag2 QoS override YAML file'),
         OpaqueFunction(function=launch_setup)
         ])
